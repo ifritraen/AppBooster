@@ -38,6 +38,25 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Prepare signing keystore
+        env:
+          PS_RELEASE_KEY_FILE: ${{ secrets.PS_RELEASE_KEY_FILE }}
+          PS_RELEASE_KEY_ALIAS: ${{ secrets.PS_RELEASE_KEY_ALIAS }}
+          PS_RELEASE_KEY_PASSWORD: ${{ secrets.PS_RELEASE_KEY_PASSWORD }}
+          PS_RELEASE_STORE_PASSWORD: ${{ secrets.PS_RELEASE_STORE_PASSWORD }}
+        run: |
+          if [ -n "$PS_RELEASE_KEY_FILE" ]; then
+            keystore_path="$RUNNER_TEMP/release-keystore.jks"
+            echo "$PS_RELEASE_KEY_FILE" | base64 --decode > "$keystore_path"
+            key_password="${PS_RELEASE_KEY_PASSWORD:-$PS_RELEASE_STORE_PASSWORD}"
+            {
+              echo "GH_RELEASE_KEYSTORE_PATH=$keystore_path"
+              echo "GH_RELEASE_KEY_ALIAS=$PS_RELEASE_KEY_ALIAS"
+              echo "GH_RELEASE_KEY_PASSWORD=$key_password"
+              echo "GH_RELEASE_STORE_PASSWORD=$PS_RELEASE_STORE_PASSWORD"
+            } >> "$GITHUB_ENV"
+          fi
+
       - name: Extract Version
         id: get_version
         run: |
