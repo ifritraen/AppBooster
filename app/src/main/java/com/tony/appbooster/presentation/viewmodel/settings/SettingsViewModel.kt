@@ -77,7 +77,8 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadAppInfo() {
         executeAsync {
-            if (val result = getAppInfoUseCase(); result is Resource.Success) {
+            val result = getAppInfoUseCase()
+            if (result is Resource.Success) {
                 val appInfo: AppInfo = result.data
                 updateUiData(
                     currentUiData().copy(
