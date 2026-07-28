@@ -1,0 +1,9 @@
+package com.raen.optidroid.presentation.navigation
+
+sealed class MainNavigationGraph(val route: String) {
+
+    data object MainFlowNode : MainNavigationGraph("main_flow_node")
+
+    data object ShizukuSetupScreen : MainNavigationGraph("shizuku_setup_screen")
+    data object HomeScreen : MainNavigationGraph("home_screen")
+}

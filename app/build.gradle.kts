@@ -24,13 +24,11 @@ val hasReleaseSigning: Boolean = listOf(
 ).none { it.isNullOrBlank() }
 
 android {
-    namespace = "com.tony.appbooster"
-    compileSdk {
-        version = release(36)
-    }
+    namespace = "com.raen.optidroid"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.tony.appbooster"
+        applicationId = "com.raen.optidroid"
         minSdk = 26
         targetSdk = 36
 
