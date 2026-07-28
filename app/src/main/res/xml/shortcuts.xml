@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_scan"
+        android:enabled="true"
+        android:icon="@drawable/ic_scan"
+        android:shortcutShortLabel="@string/shortcut_scan_short"
+        android:shortcutLongLabel="@string/shortcut_scan_long">
+        <intent
+            android:action="com.tony.appbooster.ACTION_SCAN"
+            android:targetPackage="com.tony.appbooster"
+            android:targetClass="com.tony.appbooster.presentation.activity.QuickActionActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="shortcut_optimize"
+        android:enabled="true"
+        android:icon="@drawable/ic_optimize"
+        android:shortcutShortLabel="@string/shortcut_optimize_short"
+        android:shortcutLongLabel="@string/shortcut_optimize_long">
+        <intent
+            android:action="com.tony.appbooster.ACTION_OPTIMIZE"
+            android:targetPackage="com.tony.appbooster"
+            android:targetClass="com.tony.appbooster.presentation.activity.QuickActionActivity" />
+    </shortcut>
+</shortcuts>

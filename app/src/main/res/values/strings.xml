@@ -248,4 +248,11 @@
     <string name="log_optimal">Optimal</string>
     <string name="log_no_profile_never_used">No profile</string>
     <string name="log_mode_info">Mode</string>
+
+    <!-- Shortcuts & Tiles -->
+    <string name="shortcut_scan_short">Scan Apps</string>
+    <string name="shortcut_scan_long">Scan installed applications</string>
+    <string name="shortcut_optimize_short">Optimize All</string>
+    <string name="shortcut_optimize_long">Optimize installed applications</string>
+    <string name="qs_tile_label">OptiDroid Boost</string>
 </resources>

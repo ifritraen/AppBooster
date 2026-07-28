@@ -63,27 +63,28 @@ fun SettingsScreen(
             data = data,
             onOptimizationTypeClick = { newType ->
                 viewModel.onOptimizationTypeSelected(newType)
+            },
+            onAutoOptimizationToggled = { enabled ->
+                viewModel.onEvent(com.tony.appbooster.presentation.viewmodel.settings.SettingsUiEvent.OnAutoOptimizationToggled(enabled))
+            },
+            onUnlockDelayChanged = { minutes ->
+                viewModel.onEvent(com.tony.appbooster.presentation.viewmodel.settings.SettingsUiEvent.OnUnlockDelayChanged(minutes))
+            },
+            onPeriodicScheduleChanged = { hours ->
+                viewModel.onEvent(com.tony.appbooster.presentation.viewmodel.settings.SettingsUiEvent.OnPeriodicScheduleChanged(hours))
             }
         )
     }
 }
 
-/**
- * Renders the visual structure of the Settings screen using the provided
- * [SettingsUiState], allowing the user to inspect and change optimization
- * mode as well as view the current Shizuku status and app information.
- *
- * Automatically switches between a single-column phone layout and a
- * two-column tablet layout based on the current [LocalWindowSizeClass].
- *
- * @param data The current UI state snapshot for the Settings screen.
- * @param onOptimizationTypeClick Callback invoked when user requests a new optimization type.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreenContent(
     data: SettingsUiState,
-    onOptimizationTypeClick: (AppOptimizationType) -> Unit
+    onOptimizationTypeClick: (AppOptimizationType) -> Unit,
+    onAutoOptimizationToggled: (Boolean) -> Unit = {},
+    onUnlockDelayChanged: (Int) -> Unit = {},
+    onPeriodicScheduleChanged: (Int) -> Unit = {}
 ) {
     val isTablet = isTabletLayout()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
@@ -113,25 +114,31 @@ fun SettingsScreenContent(
             SettingsTabletLayout(
                 data = data,
                 onOptimizationTypeClick = onOptimizationTypeClick,
+                onAutoOptimizationToggled = onAutoOptimizationToggled,
+                onUnlockDelayChanged = onUnlockDelayChanged,
+                onPeriodicScheduleChanged = onPeriodicScheduleChanged,
                 modifier = Modifier.padding(padding)
             )
         } else {
             SettingsPhoneLayout(
                 data = data,
                 onOptimizationTypeClick = onOptimizationTypeClick,
+                onAutoOptimizationToggled = onAutoOptimizationToggled,
+                onUnlockDelayChanged = onUnlockDelayChanged,
+                onPeriodicScheduleChanged = onPeriodicScheduleChanged,
                 modifier = Modifier.padding(padding)
             )
         }
     }
 }
 
-/**
- * Single-column phone layout: all settings sections stacked vertically with scroll.
- */
 @Composable
 private fun SettingsPhoneLayout(
     data: SettingsUiState,
     onOptimizationTypeClick: (AppOptimizationType) -> Unit,
+    onAutoOptimizationToggled: (Boolean) -> Unit,
+    onUnlockDelayChanged: (Int) -> Unit,
+    onPeriodicScheduleChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -148,6 +155,20 @@ private fun SettingsPhoneLayout(
             OptimizationTypeSelector(
                 selectedType = data.appOptimizationType,
                 onTypeSelected = onOptimizationTypeClick
+            )
+        }
+
+        SettingsSection(
+            title = "Auto-Optimization",
+            subtitle = "Configure periodic & device open triggers"
+        ) {
+            com.tony.appbooster.presentation.screen.settings.components.AutoOptimizationCard(
+                enabled = data.autoOptimizationEnabled,
+                unlockDelayMinutes = data.unlockDelayMinutes,
+                periodicScheduleHours = data.periodicScheduleHours,
+                onEnabledChanged = { onAutoOptimizationToggled(it) },
+                onUnlockDelayChanged = { onUnlockDelayChanged(it) },
+                onPeriodicScheduleChanged = { onPeriodicScheduleChanged(it) }
             )
         }
 
@@ -183,13 +204,16 @@ private fun SettingsPhoneLayout(
 private fun SettingsTabletLayout(
     data: SettingsUiState,
     onOptimizationTypeClick: (AppOptimizationType) -> Unit,
+    onAutoOptimizationToggled: (Boolean) -> Unit,
+    onUnlockDelayChanged: (Int) -> Unit,
+    onPeriodicScheduleChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // ── Left column: Optimization mode ─────────────────────────────────
+        // ── Left column: Optimization mode & Auto-Optimization ─────────────
         Column(
             modifier = Modifier
                 .weight(0.55f)
@@ -205,6 +229,20 @@ private fun SettingsTabletLayout(
                 OptimizationTypeSelector(
                     selectedType = data.appOptimizationType,
                     onTypeSelected = onOptimizationTypeClick
+                )
+            }
+
+            SettingsSection(
+                title = "Auto-Optimization",
+                subtitle = "Configure periodic & device open triggers"
+            ) {
+                com.tony.appbooster.presentation.screen.settings.components.AutoOptimizationCard(
+                    enabled = data.autoOptimizationEnabled,
+                    unlockDelayMinutes = data.unlockDelayMinutes,
+                    periodicScheduleHours = data.periodicScheduleHours,
+                    onEnabledChanged = { onAutoOptimizationToggled(it) },
+                    onUnlockDelayChanged = { onUnlockDelayChanged(it) },
+                    onPeriodicScheduleChanged = { onPeriodicScheduleChanged(it) }
                 )
             }
             Spacer(Modifier.height(8.dp))

@@ -29,3 +29,11 @@ local.properties
 *.p12
 *.pfx
 *.bks
+
+# Internal AI agent state & secrets
+.aaa/
+.agents/
+.env
+secrets.*
+sensitive.*
+

@@ -2,7 +2,9 @@ package com.tony.appbooster.data.repository
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.tony.appbooster.domain.model.common.Resource
@@ -18,20 +20,10 @@ import javax.inject.Singleton
 
 private const val SETTINGS_DATA_STORE_NAME = "app_settings"
 
-
 private val Context.settingsDataStore by preferencesDataStore(
     name = SETTINGS_DATA_STORE_NAME
 )
 
-/**
- * DataStore-backed implementation of [SettingsRepository] that persists user
- * configuration.
- *
- * The app currently persists only the selected [AppOptimizationType]. Legacy
- * ADB host/port/pairing-code configuration has been removed.
- *
- * @param applicationContext Application-level [Context] used to access DataStore.
- */
 @Singleton
 class SettingsDataStoreRepository @Inject constructor(
     @param:ApplicationContext private val applicationContext: Context
@@ -40,6 +32,12 @@ class SettingsDataStoreRepository @Inject constructor(
     private object Keys {
         val APP_OPTIMIZATION_TYPE: Preferences.Key<String> =
             stringPreferencesKey("app_optimization_type")
+        val AUTO_OPTIMIZATION_ENABLED: Preferences.Key<Boolean> =
+            booleanPreferencesKey("auto_optimization_enabled")
+        val UNLOCK_DELAY_MINUTES: Preferences.Key<Int> =
+            intPreferencesKey("unlock_delay_minutes")
+        val PERIODIC_SCHEDULE_HOURS: Preferences.Key<Int> =
+            intPreferencesKey("periodic_schedule_hours")
     }
 
     override fun observeAppOptimizationType(): Flow<Resource<AppOptimizationType>> {
@@ -81,6 +79,63 @@ class SettingsDataStoreRepository @Inject constructor(
                     message = throwable.message ?: "Unable to persist optimization type"
                 )
             )
+        }
+    }
+
+    override fun observeAutoOptimizationEnabled(): Flow<Resource<Boolean>> {
+        return applicationContext.settingsDataStore.data
+            .map { preferences ->
+                Resource.Success(preferences[Keys.AUTO_OPTIMIZATION_ENABLED] ?: false) as Resource<Boolean>
+            }
+            .catch { emit(Resource.Error(ResourceError.DatabaseError(it.message ?: "Error"))) }
+    }
+
+    override suspend fun setAutoOptimizationEnabled(enabled: Boolean): Resource<Unit> {
+        return try {
+            applicationContext.settingsDataStore.edit { preferences ->
+                preferences[Keys.AUTO_OPTIMIZATION_ENABLED] = enabled
+            }
+            Resource.Success(Unit)
+        } catch (t: Throwable) {
+            Resource.Error(ResourceError.DatabaseError(t.message ?: "Error"))
+        }
+    }
+
+    override fun observeUnlockDelayMinutes(): Flow<Resource<Int>> {
+        return applicationContext.settingsDataStore.data
+            .map { preferences ->
+                Resource.Success(preferences[Keys.UNLOCK_DELAY_MINUTES] ?: 0) as Resource<Int>
+            }
+            .catch { emit(Resource.Error(ResourceError.DatabaseError(it.message ?: "Error"))) }
+    }
+
+    override suspend fun setUnlockDelayMinutes(minutes: Int): Resource<Unit> {
+        return try {
+            applicationContext.settingsDataStore.edit { preferences ->
+                preferences[Keys.UNLOCK_DELAY_MINUTES] = minutes
+            }
+            Resource.Success(Unit)
+        } catch (t: Throwable) {
+            Resource.Error(ResourceError.DatabaseError(t.message ?: "Error"))
+        }
+    }
+
+    override fun observePeriodicScheduleHours(): Flow<Resource<Int>> {
+        return applicationContext.settingsDataStore.data
+            .map { preferences ->
+                Resource.Success(preferences[Keys.PERIODIC_SCHEDULE_HOURS] ?: 1) as Resource<Int>
+            }
+            .catch { emit(Resource.Error(ResourceError.DatabaseError(it.message ?: "Error"))) }
+    }
+
+    override suspend fun setPeriodicScheduleHours(hours: Int): Resource<Unit> {
+        return try {
+            applicationContext.settingsDataStore.edit { preferences ->
+                preferences[Keys.PERIODIC_SCHEDULE_HOURS] = hours
+            }
+            Resource.Success(Unit)
+        } catch (t: Throwable) {
+            Resource.Error(ResourceError.DatabaseError(t.message ?: "Error"))
         }
     }
 }

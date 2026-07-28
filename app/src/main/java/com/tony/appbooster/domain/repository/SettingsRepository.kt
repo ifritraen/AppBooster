@@ -33,4 +33,13 @@ interface SettingsRepository {
     suspend fun setAppOptimizationType(
         type: AppOptimizationType
     ): Resource<Unit>
+
+    fun observeAutoOptimizationEnabled(): Flow<Resource<Boolean>>
+    suspend fun setAutoOptimizationEnabled(enabled: Boolean): Resource<Unit>
+
+    fun observeUnlockDelayMinutes(): Flow<Resource<Int>>
+    suspend fun setUnlockDelayMinutes(minutes: Int): Resource<Unit>
+
+    fun observePeriodicScheduleHours(): Flow<Resource<Int>>
+    suspend fun setPeriodicScheduleHours(hours: Int): Resource<Unit>
 }
