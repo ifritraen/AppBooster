@@ -24,9 +24,12 @@ fun AutoOptimizationCard(
     enabled: Boolean,
     unlockDelayMinutes: Int,
     periodicScheduleHours: Int,
+    minUnlockIntervalHours: Int = 0,
+    optimizationProgress: com.raen.optidroid.domain.model.common.OptimizationProgress = com.raen.optidroid.domain.model.common.OptimizationProgress(),
     onEnabledChanged: (Boolean) -> Unit,
     onUnlockDelayChanged: (Int) -> Unit,
     onPeriodicScheduleChanged: (Int) -> Unit,
+    onMinUnlockIntervalChanged: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -61,6 +64,54 @@ fun AutoOptimizationCard(
                 )
             }
 
+            AnimatedVisibility(visible = optimizationProgress.isRunning) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Auto-Optimization In Progress...",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "${(optimizationProgress.progress * 100f).toInt().coerceIn(0, 100)}%",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { optimizationProgress.progress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                    )
+
+                    if (optimizationProgress.currentAppPackage.isNotBlank()) {
+                        Text(
+                            text = "Current App: ${optimizationProgress.currentAppPackage}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (optimizationProgress.totalCount > 0) {
+                        Text(
+                            text = "Processed: ${optimizationProgress.processedCount} of ${optimizationProgress.totalCount} apps (${optimizationProgress.skippedCount} skipped)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             AnimatedVisibility(visible = enabled) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     // Post-Unlock Delay Slider
@@ -89,6 +140,35 @@ fun AutoOptimizationCard(
                             onValueChange = { onUnlockDelayChanged(it.roundToInt()) },
                             valueRange = 0f..60f,
                             steps = 59
+                        )
+                    }
+
+                    // Minimum Unlock Interval Slider
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Minimum Hours Between Unlock Triggers",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Text(
+                                text = if (minUnlockIntervalHours == 0) "Every unlock" else "$minUnlockIntervalHours hrs",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = "Only trigger unlock auto-optimization if device was unlocked after at least X hours (0 to 24 hrs)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = minUnlockIntervalHours.toFloat(),
+                            onValueChange = { onMinUnlockIntervalChanged(it.roundToInt()) },
+                            valueRange = 0f..24f,
+                            steps = 23
                         )
                     }
 

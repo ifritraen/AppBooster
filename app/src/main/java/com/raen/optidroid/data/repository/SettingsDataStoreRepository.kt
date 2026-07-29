@@ -38,6 +38,12 @@ class SettingsDataStoreRepository @Inject constructor(
             intPreferencesKey("unlock_delay_minutes")
         val PERIODIC_SCHEDULE_HOURS: Preferences.Key<Int> =
             intPreferencesKey("periodic_schedule_hours")
+        val MIN_UNLOCK_INTERVAL_HOURS: Preferences.Key<Int> =
+            intPreferencesKey("min_unlock_interval_hours")
+        val LAST_UNLOCK_TIMESTAMP: Preferences.Key<Long> =
+            androidx.datastore.preferences.core.longPreferencesKey("last_unlock_timestamp")
+        val OPTIMIZE_PRIVATE_SPACE: Preferences.Key<Boolean> =
+            booleanPreferencesKey("optimize_private_space")
     }
 
     override fun observeAppOptimizationType(): Flow<Resource<AppOptimizationType>> {
@@ -132,6 +138,63 @@ class SettingsDataStoreRepository @Inject constructor(
         return try {
             applicationContext.settingsDataStore.edit { preferences ->
                 preferences[Keys.PERIODIC_SCHEDULE_HOURS] = hours
+            }
+            Resource.Success(Unit)
+        } catch (t: Throwable) {
+            Resource.Error(ResourceError.DatabaseError(t.message ?: "Error"))
+        }
+    }
+
+    override fun observeMinUnlockIntervalHours(): Flow<Resource<Int>> {
+        return applicationContext.settingsDataStore.data
+            .map { preferences ->
+                Resource.Success(preferences[Keys.MIN_UNLOCK_INTERVAL_HOURS] ?: 0) as Resource<Int>
+            }
+            .catch { emit(Resource.Error(ResourceError.DatabaseError(it.message ?: "Error"))) }
+    }
+
+    override suspend fun setMinUnlockIntervalHours(hours: Int): Resource<Unit> {
+        return try {
+            applicationContext.settingsDataStore.edit { preferences ->
+                preferences[Keys.MIN_UNLOCK_INTERVAL_HOURS] = hours
+            }
+            Resource.Success(Unit)
+        } catch (t: Throwable) {
+            Resource.Error(ResourceError.DatabaseError(t.message ?: "Error"))
+        }
+    }
+
+    override fun observeLastUnlockTimestamp(): Flow<Resource<Long>> {
+        return applicationContext.settingsDataStore.data
+            .map { preferences ->
+                Resource.Success(preferences[Keys.LAST_UNLOCK_TIMESTAMP] ?: 0L) as Resource<Long>
+            }
+            .catch { emit(Resource.Error(ResourceError.DatabaseError(it.message ?: "Error"))) }
+    }
+
+    override suspend fun setLastUnlockTimestamp(timestamp: Long): Resource<Unit> {
+        return try {
+            applicationContext.settingsDataStore.edit { preferences ->
+                preferences[Keys.LAST_UNLOCK_TIMESTAMP] = timestamp
+            }
+            Resource.Success(Unit)
+        } catch (t: Throwable) {
+            Resource.Error(ResourceError.DatabaseError(t.message ?: "Error"))
+        }
+    }
+
+    override fun observeOptimizePrivateSpace(): Flow<Resource<Boolean>> {
+        return applicationContext.settingsDataStore.data
+            .map { preferences ->
+                Resource.Success(preferences[Keys.OPTIMIZE_PRIVATE_SPACE] ?: true) as Resource<Boolean>
+            }
+            .catch { emit(Resource.Error(ResourceError.DatabaseError(it.message ?: "Error"))) }
+    }
+
+    override suspend fun setOptimizePrivateSpace(enabled: Boolean): Resource<Unit> {
+        return try {
+            applicationContext.settingsDataStore.edit { preferences ->
+                preferences[Keys.OPTIMIZE_PRIVATE_SPACE] = enabled
             }
             Resource.Success(Unit)
         } catch (t: Throwable) {

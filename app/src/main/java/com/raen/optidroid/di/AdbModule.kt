@@ -1,6 +1,7 @@
 package com.raen.optidroid.di
 
 import com.raen.optidroid.data.client.AdbShellClientImpl
+import com.raen.optidroid.data.client.RootShellClientImpl
 import com.raen.optidroid.data.repository.AdbRepositoryImpl
 import com.raen.optidroid.data.repository.AdbShellDataSourceImpl
 import com.raen.optidroid.domain.client.AdbShellClient
@@ -80,17 +81,27 @@ object AdbConfigModule {
     @AdbIoDispatcher
     fun provideAdbIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
 
+    @Provides
+    @Singleton
+    fun provideRootShellClientImpl(
+        @AdbIoDispatcher ioDispatcher: CoroutineDispatcher
+    ): RootShellClientImpl {
+        return RootShellClientImpl(ioDispatcher)
+    }
+
     /**
      * Provides a fully configured [AdbShellClientImpl] instance.
      *
      * @param shizukuClient The Shizuku shell client for privileged operations.
+     * @param rootClient The Direct Root shell client fallback.
      * @return Configured [AdbShellClientImpl].
      */
     @Provides
     @Singleton
     fun provideAdbShellClientImpl(
-        shizukuClient: ShizukuShellClient
+        shizukuClient: ShizukuShellClient,
+        rootClient: RootShellClientImpl
     ): AdbShellClientImpl {
-        return AdbShellClientImpl(shizukuClient)
+        return AdbShellClientImpl(shizukuClient, rootClient)
     }
 }

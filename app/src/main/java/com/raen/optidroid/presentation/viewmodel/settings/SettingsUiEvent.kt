@@ -7,4 +7,6 @@ sealed interface SettingsUiEvent {
     data class OnAutoOptimizationToggled(val enabled: Boolean) : SettingsUiEvent
     data class OnUnlockDelayChanged(val minutes: Int) : SettingsUiEvent
     data class OnPeriodicScheduleChanged(val hours: Int) : SettingsUiEvent
+    data class OnMinUnlockIntervalChanged(val hours: Int) : SettingsUiEvent
+    data class OnOptimizePrivateSpaceToggled(val enabled: Boolean) : SettingsUiEvent
 }

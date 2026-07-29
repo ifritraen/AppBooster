@@ -14,8 +14,10 @@ import com.raen.optidroid.domain.model.common.ResourceError
 import com.raen.optidroid.domain.model.settings.AppOptimizationType
 import com.raen.optidroid.domain.repository.AdbConnectionState
 import com.raen.optidroid.domain.repository.AdbRepository
+import com.raen.optidroid.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
@@ -33,13 +35,15 @@ import javax.inject.Inject
  * @property logger Shared structured logger for diagnostic output.
  * @property packageQuery Service for querying installed packages.
  * @property compilationResolver Service for resolving per-package compilation status.
+ * @property settingsRepository Service for managing app settings.
  * @constructor Creates the repository with all required collaborators.
  */
 class AdbRepositoryImpl @Inject constructor(
     private val shellDataSource: AdbShellDataSource,
     private val logger: OptimizationLogger,
     private val packageQuery: PackageListQueryService,
-    private val compilationResolver: CompilationInfoResolver
+    private val compilationResolver: CompilationInfoResolver,
+    private val settingsRepository: SettingsRepository
 ) : AdbRepository {
 
     private val _connectionState =
@@ -180,7 +184,8 @@ class AdbRepositoryImpl @Inject constructor(
             logger.addLogEntry(LogEntryType.START, messageKey = LogMessageKey.STARTING_OPTIMIZATION,
                 detail = "Mode: $compileMode$forceLabel")
 
-            val allPackages = packageQuery.queryInstalledPackages()
+            val includePrivateSpace = isPrivateSpaceEnabled()
+            val allPackages = packageQuery.queryInstalledPackages(includePrivateSpace = includePrivateSpace)
             if (allPackages.isEmpty()) {
                 logger.addLog("No packages found for optimization.")
                 logger.addLogEntry(LogEntryType.INFO, messageKey = LogMessageKey.NO_PACKAGES_FOUND)
@@ -269,7 +274,8 @@ class AdbRepositoryImpl @Inject constructor(
         _optimizationAnalysis.value = _optimizationAnalysis.value.copy(isScanning = true)
         logger.addLogEntry(LogEntryType.START, messageKey = LogMessageKey.STARTING_ANALYSIS)
 
-        val allPackages = packageQuery.queryInstalledPackages()
+        val includePrivateSpace = isPrivateSpaceEnabled()
+        val allPackages = packageQuery.queryInstalledPackages(includePrivateSpace = includePrivateSpace)
         if (allPackages.isEmpty()) {
             logger.addLogEntry(LogEntryType.INFO, messageKey = LogMessageKey.NO_PACKAGES_FOUND)
             return@runCatching emptyAnalysisResult(mode)
@@ -410,10 +416,19 @@ class AdbRepositoryImpl @Inject constructor(
             )
             logger.addLogEntry(LogEntryType.OPTIMIZING, messageKey = LogMessageKey.OPTIMIZING_APP, packageName = packageName)
 
-            val command = "cmd package compile -m $compileMode -f $packageName"
+            val command = "cmd package compile -m $compileMode -f --user all $packageName"
             logger.addLog("> $command")
 
-            shellDataSource.executeCommand(command).fold(
+            val result = shellDataSource.executeCommand(command)
+            val finalResult = if (result.isFailure) {
+                val fallbackCommand = "cmd package compile -m $compileMode -f $packageName"
+                logger.addLog("> $fallbackCommand")
+                shellDataSource.executeCommand(fallbackCommand)
+            } else {
+                result
+            }
+
+            finalResult.fold(
                 onSuccess = { output ->
                     logger.addLog("Success: optimized $packageName")
                     logger.addLogEntry(LogEntryType.SUCCESS, messageKey = LogMessageKey.OPTIMIZED, packageName = packageName)
@@ -602,5 +617,9 @@ class AdbRepositoryImpl @Inject constructor(
             Triple(LogEntryType.NO_PROFILE, LogMessageKey.NO_PROFILE_NEVER_USED, null)
         else ->
             Triple(LogEntryType.SUCCESS, LogMessageKey.ALREADY_OPTIMIZED, null)
+    }
+
+    private suspend fun isPrivateSpaceEnabled(): Boolean {
+        return (settingsRepository.observeOptimizePrivateSpace().firstOrNull() as? Resource.Success)?.data ?: true
     }
 }

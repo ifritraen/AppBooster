@@ -29,36 +29,39 @@ import javax.inject.Singleton
  */
 @Singleton
 class AdbShellClientImpl @Inject constructor(
-    private val shizukuClient: ShizukuShellClient
+    private val shizukuClient: ShizukuShellClient,
+    private val rootClient: RootShellClientImpl
 ) : AdbShellClient {
 
     override suspend fun isConnected(): Boolean {
         shizukuClient.refreshState()
-        return shizukuClient.isReady()
+        if (shizukuClient.isReady()) return true
+        return rootClient.isRootAvailable()
     }
 
     override suspend fun ensureConnected() {
         shizukuClient.refreshState()
 
-        val currentState = shizukuClient.state.first()
+        if (shizukuClient.isReady()) return
 
+        if (rootClient.isRootAvailable()) return
+
+        val currentState = shizukuClient.state.first()
         when (currentState) {
-            ShizukuState.Ready -> {
-                // Intentionally no-op: higher layers (repository/UI) handle user-facing logging.
-            }
+            ShizukuState.Ready -> {}
             ShizukuState.NotInstalled -> {
                 throw IllegalStateException(
-                    "Shizuku is not installed. Please install Shizuku from the Play Store or shizuku.rikka.app"
+                    "Shizuku is not installed and Root access was not detected."
                 )
             }
             ShizukuState.NotRunning -> {
                 throw IllegalStateException(
-                    "Shizuku service is not running. Please start it via shizuku app"
+                    "Shizuku service is not running and Root access was not detected."
                 )
             }
             ShizukuState.PermissionRequired -> {
                 throw IllegalStateException(
-                    "Shizuku permission required. Please grant permission in the Shizuku app."
+                    "Shizuku permission required and Root access was not detected."
                 )
             }
             is ShizukuState.Error -> {
@@ -70,16 +73,25 @@ class AdbShellClientImpl @Inject constructor(
     }
 
     override suspend fun executeDetailed(command: String): ShellCommandResult {
-        ensureConnected()
-
-        // Do not log commands here to avoid duplicated logs; repositories already log "> <command>".
-
-        val result = shizukuClient.execute(command)
-
-        if (!result.isSuccess) {
-            Log.e(TAG, "Command failed with exit code ${result.exitCode}: ${result.error}")
+        shizukuClient.refreshState()
+        if (shizukuClient.isReady()) {
+            val result = shizukuClient.execute(command)
+            if (!result.isSuccess) {
+                Log.e(TAG, "Shizuku command failed with exit code ${result.exitCode}: ${result.error}")
+            }
+            return ShellCommandResult(
+                exitCode = result.exitCode,
+                stdout = result.output,
+                stderr = result.error
+            )
         }
 
+        if (rootClient.isRootAvailable()) {
+            return rootClient.executeDetailed(command)
+        }
+
+        ensureConnected()
+        val result = shizukuClient.execute(command)
         return ShellCommandResult(
             exitCode = result.exitCode,
             stdout = result.output,
@@ -88,12 +100,15 @@ class AdbShellClientImpl @Inject constructor(
     }
 
     override suspend fun execute(command: String): String {
-        // Preserve existing behavior for callers that only need stdout.
         return executeDetailed(command).stdout
     }
 
     override fun stream(command: String): Flow<Result<String>> {
-        return shizukuClient.executeStreaming(command)
+        return if (shizukuClient.isReady()) {
+            shizukuClient.executeStreaming(command)
+        } else {
+            rootClient.stream(command)
+        }
     }
 
     companion object {

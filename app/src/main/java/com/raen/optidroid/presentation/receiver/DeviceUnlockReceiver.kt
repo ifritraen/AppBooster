@@ -33,6 +33,19 @@ class DeviceUnlockReceiver : BroadcastReceiver() {
                 try {
                     val enabled = (settingsRepository.observeAutoOptimizationEnabled().first() as? Resource.Success)?.data ?: false
                     if (enabled) {
+                        val minIntervalHours = (settingsRepository.observeMinUnlockIntervalHours().first() as? Resource.Success)?.data ?: 0
+                        val lastUnlockTimestamp = (settingsRepository.observeLastUnlockTimestamp().first() as? Resource.Success)?.data ?: 0L
+                        val currentTime = System.currentTimeMillis()
+
+                        if (minIntervalHours > 0 && lastUnlockTimestamp > 0L) {
+                            val elapsedHours = (currentTime - lastUnlockTimestamp) / (1000 * 60 * 60)
+                            if (elapsedHours < minIntervalHours) {
+                                return@launch
+                            }
+                        }
+
+                        settingsRepository.setLastUnlockTimestamp(currentTime)
+
                         val delayMinutes = (settingsRepository.observeUnlockDelayMinutes().first() as? Resource.Success)?.data ?: 0
                         val modeRes = settingsRepository.observeAppOptimizationType().first()
                         val mode = (modeRes as? Resource.Success)?.data ?: AppOptimizationType.SPEED_PROFILE

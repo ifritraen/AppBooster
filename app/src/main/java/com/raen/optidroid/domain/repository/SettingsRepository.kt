@@ -42,4 +42,13 @@ interface SettingsRepository {
 
     fun observePeriodicScheduleHours(): Flow<Resource<Int>>
     suspend fun setPeriodicScheduleHours(hours: Int): Resource<Unit>
+
+    fun observeMinUnlockIntervalHours(): Flow<Resource<Int>>
+    suspend fun setMinUnlockIntervalHours(hours: Int): Resource<Unit>
+
+    fun observeLastUnlockTimestamp(): Flow<Resource<Long>>
+    suspend fun setLastUnlockTimestamp(timestamp: Long): Resource<Unit>
+
+    fun observeOptimizePrivateSpace(): Flow<Resource<Boolean>>
+    suspend fun setOptimizePrivateSpace(enabled: Boolean): Resource<Unit>
 }

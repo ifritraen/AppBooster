@@ -32,24 +32,31 @@ class PackageListQueryService @Inject constructor(
     }
 
     /**
-     * Queries all installed package names from the device.
+     * Queries installed package names from the device across user profiles.
      *
-     * Tries the standard `pm list packages` command first; if no packages
-     * are parsed, falls back to `pm list packages -3` (third-party only).
+     * Tries `pm list packages --user all` first to include Private Space, Work Profiles,
+     * and dual/cloned profiles. If no packages are parsed, falls back to standard
+     * `pm list packages` and `pm list packages -3`.
      *
+     * @param includePrivateSpace Whether to include packages from all user profiles (e.g. Private Space).
      * @return List of normalised package names, or an empty list on failure.
      */
-    suspend fun queryInstalledPackages(): List<String> {
-        val command = "pm list packages"
-        logger.addLog("> $command")
-        val result = shellDataSource.executeCommand(command)
+    suspend fun queryInstalledPackages(includePrivateSpace: Boolean = true): List<String> {
+        val primaryCommand = if (includePrivateSpace) "pm list packages --user all" else "pm list packages"
+        logger.addLog("> $primaryCommand")
+        val result = shellDataSource.executeCommand(primaryCommand)
 
         return result.fold(
             onSuccess = { output ->
                 val packages = parsePackageLines(output)
                 if (packages.isNotEmpty()) {
-                    logger.addLog("Found ${packages.size} packages")
+                    logger.addLog("Found ${packages.size} packages (Multi-User / Private Space: $includePrivateSpace)")
                     return@fold packages
+                }
+
+                if (includePrivateSpace) {
+                    logger.addLog("pm list packages --user all returned no packages, falling back to standard query...")
+                    return@fold queryInstalledPackages(includePrivateSpace = false)
                 }
 
                 // Diagnostics when primary command yields nothing
@@ -61,6 +68,10 @@ class PackageListQueryService @Inject constructor(
                 queryAlternativePackageList()
             },
             onFailure = { throwable ->
+                if (includePrivateSpace) {
+                    logger.addLog("Multi-user package query failed: ${throwable.message}. Falling back to single user...")
+                    return@fold queryInstalledPackages(includePrivateSpace = false)
+                }
                 logger.addLog("Failed to query installed packages: ${throwable.message}")
                 emptyList()
             }

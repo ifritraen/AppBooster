@@ -23,7 +23,8 @@ class SettingsViewModel @Inject constructor(
     private val setAppOptimizationTypeUseCase: SetAppOptimizationTypeUseCase,
     private val getAppInfoUseCase: GetAppInfoUseCase,
     private val observeShizukuStateUseCase: ObserveShizukuStateUseCase,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val adbRepository: com.raen.optidroid.domain.repository.AdbRepository
 ) : BaseViewModel<SettingsUiState, SettingsUiEvent, SettingsUiEffect>(navigationManager) {
 
     override val LOG_TAG: String = "SettingsViewModel"
@@ -32,7 +33,16 @@ class SettingsViewModel @Inject constructor(
         observeOptimizationType()
         observeShizukuState()
         observeAutoOptimizationSettings()
+        observeOptimizationProgress()
         loadAppInfo()
+    }
+
+    private fun observeOptimizationProgress() {
+        viewModelScope.launch(exceptionHandler) {
+            adbRepository.optimizationProgress.collectLatest { progress ->
+                updateUiData(currentUiData().copy(optimizationProgress = progress))
+            }
+        }
     }
 
     private fun observeOptimizationType() {
@@ -72,6 +82,16 @@ class SettingsViewModel @Inject constructor(
                     if (res is Resource.Success) updateUiData(currentUiData().copy(periodicScheduleHours = res.data))
                 }
             }
+            launch {
+                settingsRepository.observeMinUnlockIntervalHours().collectLatest { res ->
+                    if (res is Resource.Success) updateUiData(currentUiData().copy(minUnlockIntervalHours = res.data))
+                }
+            }
+            launch {
+                settingsRepository.observeOptimizePrivateSpace().collectLatest { res ->
+                    if (res is Resource.Success) updateUiData(currentUiData().copy(optimizePrivateSpaceEnabled = res.data))
+                }
+            }
         }
     }
 
@@ -106,6 +126,16 @@ class SettingsViewModel @Inject constructor(
             is SettingsUiEvent.OnPeriodicScheduleChanged -> {
                 executeAsync {
                     settingsRepository.setPeriodicScheduleHours(event.hours)
+                }
+            }
+            is SettingsUiEvent.OnMinUnlockIntervalChanged -> {
+                executeAsync {
+                    settingsRepository.setMinUnlockIntervalHours(event.hours)
+                }
+            }
+            is SettingsUiEvent.OnOptimizePrivateSpaceToggled -> {
+                executeAsync {
+                    settingsRepository.setOptimizePrivateSpace(event.enabled)
                 }
             }
         }

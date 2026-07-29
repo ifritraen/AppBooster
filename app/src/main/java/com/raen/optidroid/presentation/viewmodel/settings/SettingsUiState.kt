@@ -10,5 +10,8 @@ data class SettingsUiState(
     val shizukuState: ShizukuState = ShizukuState.NotRunning,
     val autoOptimizationEnabled: Boolean = false,
     val unlockDelayMinutes: Int = 0,
-    val periodicScheduleHours: Int = 1
+    val periodicScheduleHours: Int = 1,
+    val minUnlockIntervalHours: Int = 0,
+    val optimizePrivateSpaceEnabled: Boolean = true,
+    val optimizationProgress: com.raen.optidroid.domain.model.common.OptimizationProgress = com.raen.optidroid.domain.model.common.OptimizationProgress()
 )

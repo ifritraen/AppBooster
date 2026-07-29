@@ -72,6 +72,12 @@ fun SettingsScreen(
             },
             onPeriodicScheduleChanged = { hours ->
                 viewModel.onEvent(com.raen.optidroid.presentation.viewmodel.settings.SettingsUiEvent.OnPeriodicScheduleChanged(hours))
+            },
+            onMinUnlockIntervalChanged = { hours ->
+                viewModel.onEvent(com.raen.optidroid.presentation.viewmodel.settings.SettingsUiEvent.OnMinUnlockIntervalChanged(hours))
+            },
+            onOptimizePrivateSpaceToggled = { enabled ->
+                viewModel.onEvent(com.raen.optidroid.presentation.viewmodel.settings.SettingsUiEvent.OnOptimizePrivateSpaceToggled(enabled))
             }
         )
     }
@@ -84,7 +90,9 @@ fun SettingsScreenContent(
     onOptimizationTypeClick: (AppOptimizationType) -> Unit,
     onAutoOptimizationToggled: (Boolean) -> Unit = {},
     onUnlockDelayChanged: (Int) -> Unit = {},
-    onPeriodicScheduleChanged: (Int) -> Unit = {}
+    onPeriodicScheduleChanged: (Int) -> Unit = {},
+    onMinUnlockIntervalChanged: (Int) -> Unit = {},
+    onOptimizePrivateSpaceToggled: (Boolean) -> Unit = {}
 ) {
     val isTablet = isTabletLayout()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
@@ -117,6 +125,8 @@ fun SettingsScreenContent(
                 onAutoOptimizationToggled = onAutoOptimizationToggled,
                 onUnlockDelayChanged = onUnlockDelayChanged,
                 onPeriodicScheduleChanged = onPeriodicScheduleChanged,
+                onMinUnlockIntervalChanged = onMinUnlockIntervalChanged,
+                onOptimizePrivateSpaceToggled = onOptimizePrivateSpaceToggled,
                 modifier = Modifier.padding(padding)
             )
         } else {
@@ -126,6 +136,8 @@ fun SettingsScreenContent(
                 onAutoOptimizationToggled = onAutoOptimizationToggled,
                 onUnlockDelayChanged = onUnlockDelayChanged,
                 onPeriodicScheduleChanged = onPeriodicScheduleChanged,
+                onMinUnlockIntervalChanged = onMinUnlockIntervalChanged,
+                onOptimizePrivateSpaceToggled = onOptimizePrivateSpaceToggled,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -139,6 +151,8 @@ private fun SettingsPhoneLayout(
     onAutoOptimizationToggled: (Boolean) -> Unit,
     onUnlockDelayChanged: (Int) -> Unit,
     onPeriodicScheduleChanged: (Int) -> Unit,
+    onMinUnlockIntervalChanged: (Int) -> Unit,
+    onOptimizePrivateSpaceToggled: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -166,9 +180,22 @@ private fun SettingsPhoneLayout(
                 enabled = data.autoOptimizationEnabled,
                 unlockDelayMinutes = data.unlockDelayMinutes,
                 periodicScheduleHours = data.periodicScheduleHours,
+                minUnlockIntervalHours = data.minUnlockIntervalHours,
+                optimizationProgress = data.optimizationProgress,
                 onEnabledChanged = { onAutoOptimizationToggled(it) },
                 onUnlockDelayChanged = { onUnlockDelayChanged(it) },
-                onPeriodicScheduleChanged = { onPeriodicScheduleChanged(it) }
+                onPeriodicScheduleChanged = { onPeriodicScheduleChanged(it) },
+                onMinUnlockIntervalChanged = { onMinUnlockIntervalChanged(it) }
+            )
+        }
+
+        SettingsSection(
+            title = "Multi-User & Private Space",
+            subtitle = "Optimize apps across profiles using Root/ADB"
+        ) {
+            com.raen.optidroid.presentation.screen.settings.components.PrivateSpaceCard(
+                enabled = data.optimizePrivateSpaceEnabled,
+                onEnabledChanged = onOptimizePrivateSpaceToggled
             )
         }
 
@@ -207,6 +234,8 @@ private fun SettingsTabletLayout(
     onAutoOptimizationToggled: (Boolean) -> Unit,
     onUnlockDelayChanged: (Int) -> Unit,
     onPeriodicScheduleChanged: (Int) -> Unit,
+    onMinUnlockIntervalChanged: (Int) -> Unit,
+    onOptimizePrivateSpaceToggled: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -240,9 +269,22 @@ private fun SettingsTabletLayout(
                     enabled = data.autoOptimizationEnabled,
                     unlockDelayMinutes = data.unlockDelayMinutes,
                     periodicScheduleHours = data.periodicScheduleHours,
+                    minUnlockIntervalHours = data.minUnlockIntervalHours,
+                    optimizationProgress = data.optimizationProgress,
                     onEnabledChanged = { onAutoOptimizationToggled(it) },
                     onUnlockDelayChanged = { onUnlockDelayChanged(it) },
-                    onPeriodicScheduleChanged = { onPeriodicScheduleChanged(it) }
+                    onPeriodicScheduleChanged = { onPeriodicScheduleChanged(it) },
+                    onMinUnlockIntervalChanged = { onMinUnlockIntervalChanged(it) }
+                )
+            }
+
+            SettingsSection(
+                title = "Multi-User & Private Space",
+                subtitle = "Optimize apps across profiles using Root/ADB"
+            ) {
+                com.raen.optidroid.presentation.screen.settings.components.PrivateSpaceCard(
+                    enabled = data.optimizePrivateSpaceEnabled,
+                    onEnabledChanged = onOptimizePrivateSpaceToggled
                 )
             }
             Spacer(Modifier.height(8.dp))
