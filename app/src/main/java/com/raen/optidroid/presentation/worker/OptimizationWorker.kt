@@ -51,17 +51,18 @@ class OptimizationWorker @AssistedInject constructor(
 
         WorkForegroundNotificationHelper.ensureChannel(applicationContext)
 
-        // Start foreground immediately.
-        setForeground(
-            WorkForegroundNotificationHelper.createForegroundInfo(
-                context = applicationContext,
-                workId = id.toString(),
-                currentLabel = null,
-                progressPercent = null,
-                progressCurrent = null,
-                progressTotal = null
+        // Start foreground immediately — required for expedited workers too.
+        try {
+            setForeground(
+                WorkForegroundNotificationHelper.createForegroundInfo(
+                    context = applicationContext,
+                    workId = id.toString(),
+                    currentLabel = null
+                )
             )
-        )
+        } catch (_: Exception) {
+            // Gracefully degrade if foreground promotion fails (e.g., app killed mid-work).
+        }
 
         // Update notification whenever the current package/progress changes.
         val notificationJob: Job = launch {
@@ -117,6 +118,19 @@ class OptimizationWorker @AssistedInject constructor(
         }
     }
 
+    /**
+     * Required for expedited workers — WorkManager calls this to get the notification
+     * before doWork() starts when the worker is launched from the background.
+     */
+    override suspend fun getForegroundInfo(): androidx.work.ForegroundInfo {
+        WorkForegroundNotificationHelper.ensureChannel(applicationContext)
+        return WorkForegroundNotificationHelper.createForegroundInfo(
+            context = applicationContext,
+            workId = id.toString(),
+            currentLabel = null
+        )
+    }
+
     companion object {
         const val KEY_OPTIMIZATION_MODE = "optimization_mode"
         const val KEY_FORCE_OPTIMIZE = "force_optimize"
@@ -153,7 +167,7 @@ class OptimizationWorker @AssistedInject constructor(
             WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK_NAME)
         }
 
-        private const val UNIQUE_WORK_NAME = "optimization_work"
+        internal const val UNIQUE_WORK_NAME = "optimization_work"
         const val TAG = "optimization"
     }
 }

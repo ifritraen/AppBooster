@@ -2,119 +2,71 @@ package com.raen.optidroid.data.client
 
 import android.util.Log
 import com.raen.optidroid.domain.model.common.ShellCommandResult
+import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.DataOutputStream
-import java.io.InputStreamReader
-import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Direct root (su) implementation for shell command execution.
- * Allows OptiDroid to run privileged system commands when direct root access
- * (Magisk, KernelSU, APatch, SuperSU) is granted.
+ * Root shell client backed by libsu (topjohnwu/libsu).
+ *
+ * libsu handles the root grant dialog, permission caching, and shell lifecycle.
+ * Works with Magisk, KernelSU, APatch, and SuperSU.
+ *
+ * Shell.Builder must be configured once in Application.onCreate() before use.
  */
 @Singleton
 class RootShellClientImpl(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
 
-    companion object {
-        private const val TAG = "RootShellClient"
-    }
+    private val tag = "RootShellClient"
 
     /**
-     * Checks whether root access (su) is available and granted.
+     * Returns true if root is available and granted.
+     * Triggers the root grant dialog via the root manager on first call.
      */
     suspend fun isRootAvailable(): Boolean = withContext(ioDispatcher) {
         try {
-            val process = ProcessBuilder("su", "-c", "id").start()
-            val output = process.inputStream.bufferedReader().use { it.readText() }
-            val exitCode = process.waitFor()
-            exitCode == 0 && output.contains("uid=0")
+            Shell.getShell().isRoot
         } catch (e: Exception) {
-            Log.d(TAG, "Root check failed: ${e.message}")
+            Log.d(tag, "Root not available: ${e.message}")
             false
         }
     }
 
     /**
-     * Executes a command using `su -c`.
+     * Executes a privileged shell command and returns the result.
      */
     suspend fun executeDetailed(command: String): ShellCommandResult = withContext(ioDispatcher) {
         try {
-            val process = ProcessBuilder("su", "-c", command).start()
-
-            val stdoutBuilder = StringBuilder()
-            val stderrBuilder = StringBuilder()
-
-            val readerThread = Thread {
-                try {
-                    process.inputStream.bufferedReader().use { reader ->
-                        var line: String?
-                        while (reader.readLine().also { line = it } != null) {
-                            stdoutBuilder.append(line).append("\n")
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            val errReaderThread = Thread {
-                try {
-                    process.errorStream.bufferedReader().use { reader ->
-                        var line: String?
-                        while (reader.readLine().also { line = it } != null) {
-                            stderrBuilder.append(line).append("\n")
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            readerThread.start()
-            errReaderThread.start()
-
-            val exitCode = process.waitFor()
-            readerThread.join(2000)
-            errReaderThread.join(2000)
-
+            val result = Shell.cmd(command).exec()
             ShellCommandResult(
-                exitCode = exitCode,
-                stdout = stdoutBuilder.toString(),
-                stderr = stderrBuilder.toString()
+                exitCode = if (result.isSuccess) 0 else 1,
+                stdout = result.out.joinToString("\n"),
+                stderr = result.err.joinToString("\n")
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error executing root command: ${e.message}", e)
-            ShellCommandResult(
-                exitCode = -1,
-                stdout = "",
-                stderr = e.message ?: "Failed to execute root command"
-            )
+            Log.e(tag, "Root command failed: ${e.message}", e)
+            ShellCommandResult(exitCode = -1, stdout = "", stderr = e.message ?: "Root shell error")
         }
     }
 
     /**
-     * Streams command output line by line using root shell.
+     * Streams command output line by line.
      */
     fun stream(command: String): Flow<Result<String>> = flow {
         try {
-            val process = ProcessBuilder("su", "-c", command).start()
-            process.inputStream.bufferedReader().use { reader ->
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    emit(Result.success(line!!))
-                }
-            }
-            val exitCode = process.waitFor()
-            if (exitCode != 0) {
-                val err = process.errorStream.bufferedReader().use { it.readText() }
-                if (err.isNotBlank()) {
-                    emit(Result.failure(RuntimeException("Root command exited with code $exitCode: $err")))
-                }
+            val out = mutableListOf<String>()
+            val err = mutableListOf<String>()
+            val result = Shell.cmd(command).to(out, err).exec()
+            out.forEach { emit(Result.success(it)) }
+            if (!result.isSuccess && err.isNotEmpty()) {
+                emit(Result.failure(RuntimeException(err.joinToString("\n"))))
             }
         } catch (e: Exception) {
             emit(Result.failure(e))

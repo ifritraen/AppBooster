@@ -3,8 +3,11 @@ package com.raen.optidroid.presentation.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.raen.optidroid.domain.model.common.Resource
 import com.raen.optidroid.domain.model.settings.AppOptimizationType
 import com.raen.optidroid.domain.repository.SettingsRepository
@@ -27,45 +30,43 @@ class DeviceUnlockReceiver : BroadcastReceiver() {
     lateinit var settingsRepository: SettingsRepository
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_USER_PRESENT) {
-            val pendingResult = goAsync()
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val enabled = (settingsRepository.observeAutoOptimizationEnabled().first() as? Resource.Success)?.data ?: false
-                    if (enabled) {
-                        val minIntervalHours = (settingsRepository.observeMinUnlockIntervalHours().first() as? Resource.Success)?.data ?: 0
-                        val lastUnlockTimestamp = (settingsRepository.observeLastUnlockTimestamp().first() as? Resource.Success)?.data ?: 0L
-                        val currentTime = System.currentTimeMillis()
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_USER_PRESENT) return
 
-                        if (minIntervalHours > 0 && lastUnlockTimestamp > 0L) {
-                            val elapsedHours = (currentTime - lastUnlockTimestamp) / (1000 * 60 * 60)
-                            if (elapsedHours < minIntervalHours) {
-                                return@launch
-                            }
-                        }
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val enabled = (settingsRepository.observeAutoOptimizationEnabled().first() as? Resource.Success)?.data ?: false
+                if (!enabled) return@launch
 
-                        settingsRepository.setLastUnlockTimestamp(currentTime)
+                val minIntervalHours = (settingsRepository.observeMinUnlockIntervalHours().first() as? Resource.Success)?.data ?: 0
+                val lastUnlockTimestamp = (settingsRepository.observeLastUnlockTimestamp().first() as? Resource.Success)?.data ?: 0L
+                val currentTime = System.currentTimeMillis()
 
-                        val delayMinutes = (settingsRepository.observeUnlockDelayMinutes().first() as? Resource.Success)?.data ?: 0
-                        val modeRes = settingsRepository.observeAppOptimizationType().first()
-                        val mode = (modeRes as? Resource.Success)?.data ?: AppOptimizationType.SPEED_PROFILE
-
-                        val request = OneTimeWorkRequestBuilder<OptimizationWorker>()
-                            .setInputData(
-                                androidx.work.workDataOf(
-                                    OptimizationWorker.KEY_OPTIMIZATION_MODE to mode.value
-                                )
-                            )
-                            .setInitialDelay(delayMinutes.toLong(), TimeUnit.MINUTES)
-                            .addTag(OptimizationWorker.TAG)
-                            .build()
-
-                        WorkManager.getInstance(context.applicationContext)
-                            .enqueue(request)
-                    }
-                } finally {
-                    pendingResult.finish()
+                if (minIntervalHours > 0 && lastUnlockTimestamp > 0L) {
+                    val elapsedHours = (currentTime - lastUnlockTimestamp) / (1000 * 60 * 60)
+                    if (elapsedHours < minIntervalHours) return@launch
                 }
+
+                settingsRepository.setLastUnlockTimestamp(currentTime)
+
+                val delayMinutes = (settingsRepository.observeUnlockDelayMinutes().first() as? Resource.Success)?.data ?: 0
+                val mode = (settingsRepository.observeAppOptimizationType().first() as? Resource.Success)?.data
+                    ?: AppOptimizationType.SPEED_PROFILE
+
+                // setExpedited grants a background-start exemption on Android 12+ so the worker
+                // can call setForeground() and show a notification from the background.
+                // OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST is the graceful fallback.
+                val request = OneTimeWorkRequestBuilder<OptimizationWorker>()
+                    .setInputData(workDataOf(OptimizationWorker.KEY_OPTIMIZATION_MODE to mode.value))
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .apply { if (delayMinutes > 0) setInitialDelay(delayMinutes.toLong(), TimeUnit.MINUTES) }
+                    .addTag(OptimizationWorker.TAG)
+                    .build()
+
+                WorkManager.getInstance(context.applicationContext)
+                    .enqueueUniqueWork(OptimizationWorker.UNIQUE_WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            } finally {
+                pendingResult.finish()
             }
         }
     }

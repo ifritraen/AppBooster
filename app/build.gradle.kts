@@ -36,7 +36,7 @@ android {
         // Bump these three values for each release; versionCode is derived automatically.
         val major = 1
         val minor = 8
-        val patch = 0
+        val patch = 1
         versionCode = major * 10000 + minor * 100 + patch   // e.g. 1.2.3 → 10203
         versionName = "$major.$minor.$patch"
 
@@ -136,5 +136,8 @@ dependencies {
     // Shizuku - for privileged shell access
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
+
+    // libsu - Root shell access (Magisk/KernelSU/APatch)
+    implementation(libs.libsu.core)
 
 }

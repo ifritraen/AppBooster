@@ -24,11 +24,13 @@ ddmlib = "32.0.0"
 dadb = "1.2.10"
 shizuku = "13.1.5"
 adaptive = "1.1.0"
+libsu = "6.0.0"
 
 [libraries]
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
 androidx-compose-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "adaptive" }
 shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+libsu-core = { module = "com.github.topjohnwu.libsu:core", version.ref = "libsu" }
 shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
 ddmlib = { module = "com.android.tools.ddms:ddmlib", version.ref = "ddmlib" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
