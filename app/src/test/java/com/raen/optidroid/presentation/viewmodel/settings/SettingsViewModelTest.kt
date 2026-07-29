@@ -5,6 +5,8 @@ import com.raen.optidroid.domain.model.common.Resource
 import com.raen.optidroid.domain.model.common.ResourceError
 import com.raen.optidroid.domain.model.settings.AppOptimizationType
 import com.raen.optidroid.domain.model.shizuku.ShizukuState
+import com.raen.optidroid.domain.repository.AdbRepository
+import com.raen.optidroid.domain.repository.SettingsRepository
 import com.raen.optidroid.domain.usecase.appinfo.GetAppInfoUseCase
 import com.raen.optidroid.domain.usecase.settings.ObserveAppOptimizationTypeUseCase
 import com.raen.optidroid.domain.usecase.settings.SetAppOptimizationTypeUseCase
@@ -46,6 +48,8 @@ class SettingsViewModelTest {
     private lateinit var setAppOptimizationTypeUseCase: SetAppOptimizationTypeUseCase
     private lateinit var getAppInfoUseCase: GetAppInfoUseCase
     private lateinit var observeShizukuStateUseCase: ObserveShizukuStateUseCase
+    private lateinit var settingsRepository: SettingsRepository
+    private lateinit var adbRepository: AdbRepository
 
     @Before
     fun setUp() {
@@ -56,6 +60,8 @@ class SettingsViewModelTest {
         setAppOptimizationTypeUseCase = mockk()
         getAppInfoUseCase = mockk()
         observeShizukuStateUseCase = mockk()
+        settingsRepository = mockk(relaxed = true)
+        adbRepository = mockk(relaxed = true)
 
         every { observeShizukuStateUseCase() } returns shizukuStateFlow
         every { observeAppOptimizationTypeUseCase() } returns flowOf(Resource.Success(AppOptimizationType.SPEED_PROFILE))
@@ -72,7 +78,9 @@ class SettingsViewModelTest {
         observeAppOptimizationTypeUseCase = observeAppOptimizationTypeUseCase,
         setAppOptimizationTypeUseCase = setAppOptimizationTypeUseCase,
         getAppInfoUseCase = getAppInfoUseCase,
-        observeShizukuStateUseCase = observeShizukuStateUseCase
+        observeShizukuStateUseCase = observeShizukuStateUseCase,
+        settingsRepository = settingsRepository,
+        adbRepository = adbRepository
     )
 
     // ── Optimization type observation ─────────────────────────────────────────
